@@ -1,0 +1,56 @@
+// This file is part of my nand2tetris project 9 exam
+// by Zac Morita
+// File name: projects9/source/Main.jack
+
+/** Initializes a new Jake the Snake game, runs it, and handles a replay/exit UI. */
+class Main {
+	function void main() {
+      	var char key;
+		var String textOpts;
+      	var boolean exit;
+		var boolean optSel;
+		var Jake a;
+      	let exit = false;
+		let textOpts = "Press R to replay or E to Exit";
+
+		//run and recycle game, and prompt replay/exit UI until user selects exit
+		while (~exit) {
+			let exit = true;
+      		let optSel = false;
+			let a = Jake.new();
+
+			//run game and recyle memory upon end of game
+			do a.run();
+			do a.dispose();
+
+			//write replay/exit UI
+			do Output.moveCursor(13, 16);
+			do Output.printString(textOpts);
+
+			//handle replay/exit UI
+			while (~optSel) {
+				let key = Keyboard.keyPressed();
+
+				//if E pressed
+				if (key = 69) {
+					let exit = true;
+					let optSel = true;
+				}
+
+				//if R pressed
+				if (key = 82) {
+					let exit = false;
+					let optSel = true;
+				}
+
+			} //while ~optSel
+			
+			do Screen.clearScreen();
+
+		} //while ~exit
+
+		do textOpts.dispose();
+
+		return;
+	}
+}

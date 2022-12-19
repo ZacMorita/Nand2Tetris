@@ -1,0 +1,411 @@
+// This file is part of my nand2tetris project 9 exam
+// by Zac Morita
+// File name: projects9/source/Jake.jack
+
+/**
+ * Implements the game: Jake the Snake
+ * A faithful clone of the late 1970's arcade classic "Snake".
+ * This simple but challenging game gives players control of a serpentining set of blocks known as Jake.
+ * The objective is to eat all the randomly appearing food until a maximum score of 200 is achieved.
+ * At which point, Jake's segments will also fill the playable board and the game will end with a "you win"
+ * condition. Should the foremost block in the direction of travel of Jake (his head) collide with any
+ * trailing block (his body), the game will end with a "game over" condition. Food is consumed by colliding
+ * Jake's head with their black and white target-like sprites. Food can appear on Jake's body. To eat it,
+ * the player must clear Jake's body from under it before colliding with the food. Colliding headfirst with
+ * any boarder surrounding the playable area will cause Jake to warp to the opposite side of the board
+ * sequentially.
+ * 
+ * The game starts with a 3 segmented Jake and a piece of food on a 10x20 board made of 100x200 pixels.
+ * A title, score counter, and instructions are displayed to the left of the board. The player uses the 
+ * arrow keys to control Jake with 90 degree turns. Retromovement (turning 180 degrees) is considered
+ * an illegal move and is prevented.
+ * The player can press Q to quit, which will end the game with a "game over" condition.
+ * 
+ * The end game screen will display upon any of 3 game ending conditions. A message will display the condition
+ * by which the game ended. And the final score will be displayed. Then the game will immediately proceed to
+ * exit it's run method and control will be returned to the calling class and function. It is up to the
+ * calling class and function to dispose of this game. It does not self recycle.
+ * 
+ * Graphics performance note: Jake is drawn fully only once. All further animation is achieved by drawing his
+ * head every frame. And by erasing his tail every frame except when food is consumed or when the tail shares
+ * coordinates with food. Food is only drawn on initialization and after a prior piece was consumed.
+ */
+
+class Jake {
+	field int maxScore;
+	field int segSize;
+	field Array xArr;
+	field Array yArr;
+	field int segments;
+
+	field String score;
+
+	field int xBoardNear;
+	field int yBoardNear;
+	field int xBoardFar;
+	field int yBoardFar;
+
+	field int textRow;
+	field int textCol;
+	field int textOffset;
+
+	field int xTail;
+	field int yTail;
+
+	field int xFood;
+	field int yFood;
+	field boolean ateFood;
+
+	field int direction;
+
+	field boolean exitGame;
+	field boolean gameOver;
+	field int xGameCounter;
+	field int yGameCounter;
+
+	/** Constructs a new Jake the Snake game. */
+	constructor Jake new() {
+		do initGame();
+		do initJake();
+		do writeFraming();
+		do drawInit();
+		do drawBoarder();
+		do placeFood();
+		do drawFood();
+		return this;
+	}
+
+	/** Initializes game related fields */
+	method void initGame() {
+
+		let score = "Score: ";
+
+		let xBoardNear = 190;
+		let yBoardNear = 30;
+		let xBoardFar = xBoardNear + 100;
+		let yBoardFar = yBoardNear + 200;
+		let textRow = 4;
+		let textCol = 6;
+		let textOffset = 5;
+
+		let maxScore = 200;
+		let direction = 3;
+		let gameOver = false;
+		let xGameCounter = 1;
+		let yGameCounter = 51;
+
+		return;
+	}
+
+	/** Initializes Jake/Snake related fields */
+	method void initJake() {
+		var int iter;
+		let segSize = 10;
+		let segments = 3;
+		let xArr = Array.new(maxScore);
+		let yArr = Array.new(maxScore);
+		let iter = 0;
+		while (iter < segments) {
+			let xArr[iter] = (xBoardNear + 30) - (iter * 10);
+			let yArr[iter] = (yBoardNear + 30);
+			let iter = iter + 1;
+		}
+		return;
+	}
+
+	/** Initializes and draws game dialog */
+	method void writeFraming() {
+		var String title;
+		var String instruct1;
+		var String instruct2;
+		var String instruct3;
+
+		let title = "Jake the Snake";
+		let instruct1 = "Use arrow keys to";
+		let instruct2 = "change direction";
+		let instruct3 = "Press Q to quite";
+
+		do Output.moveCursor(textRow, textCol);
+		do Output.printString(title);
+		do Output.moveCursor(textRow + 2, textCol + 5);
+		do Output.printString(score);
+		do Output.moveCursor(textRow + 4, textCol + 5);
+		do Output.printInt(maxScore);
+		do Output.moveCursor(textRow + 6, textCol);
+		do Output.printString(instruct1);
+		do Output.moveCursor(textRow + 7, textCol);
+		do Output.printString(instruct2);
+		do Output.moveCursor(textRow + 9, textCol);
+		do Output.printString(instruct3);
+
+		//cleanup prevents memory buildup on replays
+		do title.dispose();
+		do instruct1.dispose();
+		do instruct2.dispose();
+		do instruct3.dispose();
+
+		return;
+	}
+
+	/** Draws the boarder surrounding playable area */
+	method void drawBoarder() {
+		var int xN;
+		var int xF;
+		var int yN;
+		var int yF;
+		let xN = xBoardNear - 1;
+		let xF = (xBoardFar + segSize) + 1;
+		let yN = yBoardNear - 1;
+		let yF = (yBoardFar + segSize) + 1;
+		do Screen.drawLine(xN, yN, xF, yN);
+		do Screen.drawLine(xF, yN, xF, yF);
+		do Screen.drawLine(xF, yF, xN, yF);
+		do Screen.drawLine(xN, yF, xN, yN);
+		return;
+	}
+
+	/** Draws Jake/Snake only at start up */
+	method void drawInit() {
+		var int iter;
+		let iter = 0;
+		do Screen.setColor(true);
+		while (iter < segments) {
+			do Screen.drawRectangle(xArr[iter], yArr[iter], xArr[iter] + segSize, yArr[iter] + segSize);
+			let iter = iter + 1;
+		}
+		return;
+	}
+
+	/** Increment visible score in on screen game dialog */
+	method void keepScore() {
+		do Output.moveCursor(textRow + 3, textCol + 5);
+		do Output.printInt(segments);
+		return;
+	}
+
+	/** Sets coordinates for food with PRNG using 2 offset timers as seeds */
+	method void placeFood() {
+		let xFood = (((Prng.rand(xGameCounter) / segSize) * segSize) + xBoardNear);
+		let yFood = ((((Prng.rand(yGameCounter) * 2) / segSize) * segSize) + yBoardNear);
+		return;
+	}
+
+	/** Draws 3 overlapping squares to create the effect of the food sprite */
+	method void drawFood() {
+		do Screen.setColor(true);
+		do Screen.drawRectangle(xFood, yFood, xFood + segSize, yFood + segSize);
+		do Screen.setColor(false);
+		do Screen.drawRectangle(xFood + 2, yFood + 2, (xFood + segSize) - 2, (yFood + segSize) - 2);
+		do Screen.setColor(true);
+		do Screen.drawRectangle(xFood + 4, yFood + 4, (xFood + segSize) - 4, (yFood + segSize) - 4);
+		return;
+	}
+
+	/** Draws a black square in the 0th coordniates of Jake */
+	method void drawHead() {
+		do Screen.setColor(true);
+		do Screen.drawRectangle(xArr[0], yArr[0], xArr[0] + segSize, yArr[0] + segSize);
+		return;
+	}
+
+	/** Draws a white square in the nth coordniates of Jake */
+	method void eraseTail() {
+		do Screen.setColor(false);
+		do Screen.drawRectangle(xTail, yTail, xTail + segSize, yTail + segSize);
+		return;
+	}
+
+	/** Draws a black square in the coordniates of Food */
+	method void eraseEatenFood() {
+		do Screen.setColor(true);
+		do Screen.drawRectangle(xFood, yFood, xFood + segSize, yFood + segSize);
+		return;
+	}
+
+	/** Handles draw methods during gameCycle(), condtionally erases tail */
+	method void reDraw() {
+		do drawHead();
+		if (~ateFood) {
+			if (~((xTail = xFood) & (yTail = yFood))) { do eraseTail(); }
+		}
+		return;
+	}
+
+	/** Shifts Jack's coordinates. And handles directional changes, and boundary warping */
+	method void move() {
+		var int iter;
+		var int checkWarpBoundary;
+		let iter = segments;
+
+		let xTail = xArr[segments - 1];
+		let yTail = yArr[segments - 1];
+
+		// shifts all coordinates thru arrays
+		while (iter > 0) {
+			let xArr[iter] = xArr[(iter - 1)];
+			let yArr[iter] = yArr[(iter - 1)];
+			let iter = iter - 1;
+		}
+
+		//Handles turning and boundary warping
+		if (direction = 1) {
+			let checkWarpBoundary = xArr[0] - segSize;
+			if (checkWarpBoundary < xBoardNear) { let checkWarpBoundary = xBoardFar; }
+			let xArr[0] = (checkWarpBoundary);
+		}
+		if (direction = 2) {
+			let checkWarpBoundary = yArr[0] - segSize;
+			if (checkWarpBoundary < yBoardNear) { let checkWarpBoundary = yBoardFar; }
+			let yArr[0] = (checkWarpBoundary);
+		}
+		if (direction = 3) {
+			let checkWarpBoundary = xArr[0] + segSize;
+			if (checkWarpBoundary > xBoardFar) { let checkWarpBoundary = xBoardNear; }
+			let xArr[0] = (checkWarpBoundary);
+		}
+		if (direction = 4) {
+			let checkWarpBoundary = yArr[0] + segSize;
+			if (checkWarpBoundary > yBoardFar) { let checkWarpBoundary = yBoardNear; }
+			let yArr[0] = (checkWarpBoundary);
+		}
+
+		return;
+	}
+
+	/** Handles the end GameOver/YouWin screen and displays final score */
+	method void endGame() {
+		// The final screen displayed is handled both here and in Main.main().
+		// The Replay/Exit UI portion can be found in Main.main().
+		var String textCond;
+		if (gameOver) { let textCond = "Game Over"; }
+		if (~gameOver){	let textCond = "*You Win*"; }
+		do Screen.clearScreen();
+		do Output.moveCursor(11, 27);
+		do Output.printString(textCond);
+		do Output.moveCursor(12, 27);
+		do Output.printString(score);
+		do Output.printInt(segments);
+		let exitGame = true;
+		do textCond.dispose();
+		return;
+	}
+
+	/** Handles 1 of 3 endGame conditions - You Win */
+	method void checkAte() {
+
+		let ateFood = false; // control for eraseTail()
+
+		if ((xArr[0] = xFood) & (yArr[0] = yFood)) {
+
+			let ateFood = true; // control for eraseTail()
+
+			// If the head's coordinates match and all segments are filled the game ends
+			if (segments = (maxScore - 1)) {
+				let gameOver = false;
+				do endGame();
+			}
+
+			// If the head's coordinates match, a point is awarded and a segment is added
+			if (segments < maxScore) {
+				let segments = segments + 1; //increase Jake's size
+				do eraseEatenFood();
+				do placeFood();
+				do drawFood();
+			}
+		}
+		return;
+	}
+
+	/** Handles 1 of 3 endGame conditions - Game Over */
+	method void checkHitTail() {
+		var int iter;
+		let iter = segments;
+
+		// Decrements through both coordinate arrays checking against the head's coordinates
+		while (iter > 3) {
+			// If the head's coordinates match, the game ends
+			if ((xArr[iter] = xArr[0]) & (yArr[iter] = yArr[0])) {
+				let gameOver = true;
+				do endGame();
+			}
+			let iter = iter - 1;
+		}
+		return;
+	}
+
+	/** Handles the game's 2 offset counters used to seed the PRNG food placement */
+	method void incGameCounter() {
+		// Counters initialize with a 50 point offset and stay between 1 and 181
+		if (xGameCounter < 181) { let xGameCounter = xGameCounter + 1; }
+		if (xGameCounter = 181) { let xGameCounter = 1; }
+		if (yGameCounter < 181) { let yGameCounter = yGameCounter + 1; }
+		if (yGameCounter = 181) { let yGameCounter = 1; }
+		return;
+	}
+
+	/** Handles each action frame of the game. */
+	method void gameCycle() {
+		do incGameCounter();
+		do checkAte();
+		do checkHitTail();
+		if (~exitGame) {
+			do move();
+			do reDraw();
+			do keepScore();
+			do Sys.wait(100);	// Hardcoded delay for playability.
+		}
+		return;
+	}
+
+	/** Runs game: handles: UI, GameCycle, and 1 of 3 endGame conditions - Quit */
+	method void run() {
+		// public, called by Main.main()
+		var char key;
+		let exitGame = false;
+
+		while (~exitGame) {
+
+			let key = Keyboard.keyPressed();
+
+			// Quit
+			// q key
+			if (key = 81)  {
+				let gameOver = true;
+				do endGame();
+			}
+
+			// Movement:
+			// left arrow
+			if (key = 130) { let direction = Jake.legalMove(direction, 1); }
+			// up arrow
+			if (key = 131) { let direction = Jake.legalMove(direction, 2); }
+			// right arrow
+			if (key = 132) { let direction = Jake.legalMove(direction, 3); }
+			// down arrow
+			if (key = 133) { let direction = Jake.legalMove(direction, 4); }
+
+			do gameCycle();	//
+
+		}
+		return; //returns to Main.main()
+	}
+
+	/** Disposes this game. */
+	method void dispose() {
+		// public, called by Main.main()
+		do xArr.dispose();
+		do yArr.dispose();
+		do score.dispose();
+		do Memory.deAlloc(this);
+		return;  //returns to Main.main()
+	}
+
+	//private function returns int 1 - 4 based on logic preventing retromovement
+	function int legalMove(int lastDirection, int newDirection) {
+		if ((lastDirection = 1) & (newDirection = 3)) { return lastDirection; }
+		if ((lastDirection = 2) & (newDirection = 4)) { return lastDirection; }
+		if ((lastDirection = 3) & (newDirection = 1)) { return lastDirection; }
+		if ((lastDirection = 4) & (newDirection = 2)) { return lastDirection; }
+		return newDirection;
+	}
+}

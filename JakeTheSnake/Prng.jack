@@ -1,0 +1,60 @@
+// This file is part of my nand2tetris project 9 exam
+// by Zac Morita
+// File name: projects9/source/Prng.jack
+
+/**
+ * Implements a single function Pseudo Random Number Generation library
+ *
+ * The single parameter ‘rand’ function realizes a non-linier and recursion-less inverse
+ * variation of John Von Nuemann’s Middle-Square Method. It accepts a seed of any natural
+ * number. Though only those between 1 to 181 are used directly. It then doctors the seed as
+ * required, squares it, and if necessary, pads the product with trailing zeros by appending
+ * until it is 5 digits. Finally, it adds the number of zeros padded to the result (if any).
+ * The resulting 2nd and 3rd leftmost digits are combined and returned by the function.
+ * Rand will return 1 of 84 possible natural numbers ranging from 1 to 99.
+ * 
+ * Seed doctoring prevents a return of 0 and or memory segmentation errors. The conditions for
+ * doctoring are as follows. A seed greater than 181 or equal to 0 or 100 will be processed as
+ * a seed of 120 resulting in a return of 44. This arbitrary value was picked because it is the
+ * average of all possible returns.
+ *
+ * Note: It is recommended that users restrict seed input to numbers between 1 to 181 to limit
+ * the occurrence of repeated returns of 44.
+ */
+
+/** Implements the Prng library and it's function. */
+class Prng {
+
+	/** Returns a pseudo random number from 1 to 99 as determined by the seed. */
+	function int rand(int seed) {
+		var String seededStr;
+		var String returnStr;
+		var int seeded;
+		var int zerosAdded;
+		var int returnInt;
+
+		let seededStr = String.new(5);
+		let returnStr = String.new(2);
+		let seeded = seed;
+
+		if (seed = 100 | (seed = 0) | (seed > 181)) { let seeded = 120; }
+
+ 		do seededStr.setInt(seeded * seeded);
+
+		while (seededStr.length() < 5) {
+			do seededStr.appendChar(48);
+			let zerosAdded = zerosAdded + 1;
+		}
+
+		do returnStr.appendChar(seededStr.charAt(1));
+		do returnStr.appendChar(seededStr.charAt(2));
+
+		let returnInt = returnStr.intValue() + zerosAdded;
+
+		do returnStr.dispose();
+		do seededStr.dispose();
+
+		return returnInt;
+	}
+
+}
